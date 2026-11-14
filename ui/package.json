@@ -1,7 +1,7 @@
 {
   "name": "deadlock-helper",
   "productName": "Soulsight",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Soulsight: overlay local pentru Deadlock, recunoaste eroii din HUD si recomanda iteme contra echipei adverse.",
   "author": "Joltarise",
   "license": "UNLICENSED",

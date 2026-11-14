@@ -84,8 +84,17 @@ def show_in_taskbar(raw_hwnd, ui_pid):
     user32.SetWindowLongPtrW.argtypes = [wt.HWND, ctypes.c_int, ctypes.c_ssize_t]
     user32.SetWindowPos.argtypes = [wt.HWND, wt.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wt.UINT]
     style = user32.GetWindowLongPtrW(hwnd, -20)                    # GWL_EXSTYLE
-    user32.SetWindowLongPtrW(hwnd, -20, (style | 0x40000) & ~0x80)   # +APPWINDOW, -TOOLWINDOW
+    new = (style | 0x40000) & ~0x80                                  # +APPWINDOW, -TOOLWINDOW
+    if new == style:
+        return True
+    user32.SetWindowLongPtrW(hwnd, -20, new)
     user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, 0x37)               # FRAMECHANGED, fara mutare
+    # Taskbar-ul isi face lista la afisarea ferestrei: un stil schimbat dupa aceea nu
+    # conteaza. Ascundem si reafisam fara focus (SW_HIDE, SW_SHOWNOACTIVATE).
+    user32.ShowWindow.argtypes = [wt.HWND, ctypes.c_int]
+    if user32.IsWindowVisible(hwnd):
+        user32.ShowWindow(hwnd, 0)
+        user32.ShowWindow(hwnd, 4)
     return True
 
 
