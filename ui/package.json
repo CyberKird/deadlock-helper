@@ -1,7 +1,7 @@
 {
   "name": "deadlock-helper",
   "productName": "Deadlock Helper",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Overlay local pentru Deadlock: recunoaste eroii din HUD si recomanda iteme contra echipei adverse.",
   "author": "Joltarise",
   "license": "UNLICENSED",

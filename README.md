@@ -5,7 +5,9 @@ Un overlay local pentru Deadlock. Recunoaște eroii din bara de sus a HUD-ului, 
 ## Ce face
 
 - **Recunoaște toți cei 12 eroi** din bara de sus, din captura ecranului. Nu atinge jocul: nimic injectat, nimic citit din memoria lui.
-- **Află care ești tu** după fundalul evidențiat al slotului tău. Dacă nu reușește, apeși pe portretul tău și alegi „Eu sunt aici”.
+- **Află care ești tu** după cele 4 abilități din mijlocul HUD-ului de jos. Dacă nu reușește, apeși pe portretul tău și alegi „Eu sunt aici”.
+- **Știe ce iteme ai**: citește cele 12 sloturi din stânga-jos și îți spune ce să cumperi acum. Ține cont de ce ai deja: ce ai construit nu mai e recomandat, iar un item care se face dintr-unul pe care îl ai urcă în listă.
+- **Imbue**: la itemele cu imbue îți spune pe ce abilitate să-l dai, după cele mai apreciate build-uri publicate pentru eroul tău.
 - **Itemele contra lor**: itemele care merg mai bine decât de obicei pe eroul tău când în echipa adversă sunt eroii ăștia, plus pe cine contrează fiecare.
 - **Build pe etape** (800 / 1600 / 3200 / 6400): cele mai bune iteme din fiecare tier, cu semn când un item e bun sau mai slab contra compoziției lor.
 - **Win rate-ul tău contra fiecărui inamic**, sub portretul lui.

@@ -28,12 +28,12 @@ def main(home):
         for _ in range(3): tr.update(slots)
         got = [names.get(h, '?') for h in tr.heroes()]
         truth = TRUTH.get(key)
-        print(f'{key}: {dt*1000:.0f} ms, scala {tb.scale}, slotul tau {[i for i,s in enumerate(slots) if s and s["own"]]}')
+        print(f'{key}: {dt*1000:.0f} ms, scala {tb.scale}')
         for i, s in enumerate(slots):
             exp = truth[i] if truth else '?'
             top = ' | '.join(f'{names[h]} {v:.2f}' for v, h in s['scores'][:2]) if s else '-'
             mark = 'OK ' if got[i] == exp else '-- '
-            print(f'  {mark}{i:2d} {exp:14s} -> {got[i]:14s} [{top}] culoare {s["color"]:.2f}')
+            print(f'  {mark}{i:2d} {exp:14s} -> {got[i]:14s} [{top}]')
             ok += got[i] == exp; total += 1
     print(f'corect {ok}/{total}')
     # invatare: corectam Deadman Danny pe un cadru, apoi trebuie gasit singur pe celalalt

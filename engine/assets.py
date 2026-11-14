@@ -64,6 +64,18 @@ class Assets:
                 'icon_url': img.get('icon_image_small') or img['icon_hero_card'],
             }
         items = self._cached('items.json', f'{API}/v1/assets/items')
+        by_class_all = {it.get('class_name'): it for it in items}
+        # cele 4 abilitati ale fiecarui erou: dupa ele aflam din HUD ce erou esti
+        for h in heroes:
+            if h['id'] not in self.heroes:
+                continue
+            abil = []
+            for k in ('signature1', 'signature2', 'signature3', 'signature4'):
+                a = by_class_all.get((h.get('items') or {}).get(k))
+                if a and a.get('image'):
+                    abil.append({'id': a['id'], 'name': a['name'], 'image_url': a['image']})
+            self.heroes[h['id']]['abilities'] = abil
+        self.ability_names = {a['id']: a['name'] for a in items if a.get('type') == 'ability'}
         for it in items:
             if it.get('type') != 'upgrade' or not it.get('shopable') or it.get('disabled'):
                 continue
@@ -73,6 +85,7 @@ class Assets:
                 'id': it['id'], 'name': it['name'], 'slot': it.get('item_slot_type'),
                 'tier': it.get('item_tier'), 'cost': it.get('cost'),
                 'active': bool(it.get('is_active_item')),
+                'imbue': bool(it.get('imbue')),
                 'icon_url': it.get('shop_image') or it.get('image'),
                 'upgrades_from': [],
             }
@@ -110,6 +123,8 @@ class Assets:
         for h in self.heroes.values():
             jobs.append((h['card_url'], self.image_path('card', h['id'])))
             jobs.append((h['icon_url'], self.image_path('hero', h['id'])))
+            for a in h.get('abilities', []):
+                jobs.append((a['image_url'], self.image_path('abil', a['id'])))
         for it in self.items.values():
             jobs.append((it['icon_url'], self.image_path('item', it['id'])))
         with ThreadPoolExecutor(8) as pool:

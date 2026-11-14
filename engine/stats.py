@@ -111,9 +111,37 @@ class Stats:
     def counters(self):
         return self._get('/v1/analytics/hero-counter-stats', self._filters(), timeout=90)
 
+    def imbues(self, hero, ability_names):
+        """Pe ce abilitate dau imbue autorii celor mai apreciate build-uri ale eroului.
+        Intoarce {item_id: [{'ability', 'name', 'share'}]} (share in procente)."""
+        try:
+            builds = self._get('/v1/builds', {'hero_id': hero, 'sort_by': 'favorites', 'sort_direction': 'desc',
+                                              'limit': 80, 'only_latest': 'true'}, timeout=30)
+        except Exception as e:
+            self.log(f'builds {hero}: {e}')
+            return {}
+        counts = {}
+        for b in builds:
+            seen = set()
+            for cat in ((b.get('hero_build') or {}).get('details') or {}).get('mod_categories') or []:
+                for m in cat.get('mods') or []:
+                    t, iid = m.get('imbue_target_ability_id'), m.get('ability_id')
+                    if t and iid and (iid, t) not in seen:      # o data pe build
+                        seen.add((iid, t))
+                        counts.setdefault(iid, {})
+                        counts[iid][t] = counts[iid].get(t, 0) + 1
+        out = {}
+        for iid, c in counts.items():
+            tot = sum(c.values())
+            if tot < 3:
+                continue
+            out[iid] = [{'ability': a, 'name': ability_names.get(a, '?'), 'share': round(100 * n / tot), 'n': tot}
+                        for a, n in sorted(c.items(), key=lambda kv: -kv[1])[:2]]
+        return out
+
     # --- recomandarea ---------------------------------------------------------------
 
-    def recommend(self, hero, enemies, items, names):
+    def recommend(self, hero, enemies, items, names, ability_names=None):
         """hero: id-ul tau; enemies: id-uri; items: assets.items; names: {id: nume}."""
         enemies = [e for e in enemies if e and e != hero]
         with ThreadPoolExecutor(4) as pool:
@@ -121,6 +149,7 @@ class Stats:
             f_hero = pool.submit(self.hero_stats)
             f_cnt = pool.submit(self.counters)
             f_en = {e: pool.submit(self.item_stats, hero, e) for e in enemies}
+            f_imb = pool.submit(self.imbues, hero, ability_names or {})
             base = f_base.result()
             hs = f_hero.result()
             try:
@@ -133,6 +162,7 @@ class Stats:
                     per_enemy[e] = f.result()
                 except Exception as ex:
                     self.log(f'stats {hero} vs {e}: {ex}')
+            imbue = f_imb.result()
 
         h = next((x for x in hs if x['hero_id'] == hero), None)
         hero_n = h['matches'] if h else max((x['matches'] for x in base), default=1)
@@ -196,6 +226,7 @@ class Stats:
                 'wr': round(r['wr'] * 100, 1), 'pick': round(r['pick'] * 100, 1),
                 'n': r['n'], 'counter': round(r['counter'] * 100, 1),
                 'score': round(r['score'] * 100, 2), 'buy_min': round(r['buy'] / 60),
+                'from': it.get('upgrades_from') or [], 'imbue': imbue.get(it['id']),
                 'vs_good': [{'hero': e, 'name': names.get(e, '?'), 'd': round(d * 100, 1)} for d, e, _ in good],
                 'vs_bad': [{'hero': e, 'name': names.get(e, '?'), 'd': round(d * 100, 1)} for d, e, _ in bad],
             }
@@ -217,4 +248,46 @@ class Stats:
             'tiers': tiers, 'counter_picks': [view(r) for r in counter_picks],
             'avoid': [view(r) for r in avoid], 'matchups': matchups,
             'missing': [names.get(e, '?') for e in enemies if e not in per_enemy],
+            'pool': [view(r) for r in usable], 'imbue': imbue,
         }
+
+
+def next_items(rec, owned, items, count=3):
+    """Ce sa cumperi acum, din ce ai deja. owned: id-urile itemelor din sloturi.
+
+    - ce ai construit consuma componentele: nu le mai recomandam;
+    - tier-ul urca odata cu ce ai: dupa primele iteme nu mai propunem 800-uri;
+    - un item care se face din ceva ce ai deja e mai ieftin, deci urca in lista;
+    - itemele care contreaza echipa lor urca si ele."""
+    if not rec:
+        return []
+    owned = set(owned)
+    used = set(owned)
+    for iid in owned:
+        used.update((items.get(iid) or {}).get('upgrades_from') or [])
+    tiers = [items[i]['tier'] for i in owned if i in items]
+    t_max = max(tiers, default=0)
+    n = len(owned)
+    if t_max <= 1 and n < 4:
+        allowed = {1, 2}
+    else:
+        allowed = {max(2, t_max - 1), t_max, min(4, t_max + 1)}
+        if n < 3:
+            allowed.add(1)
+    t_low = min(allowed)
+    best = []
+    for it in rec.get('pool', []):
+        if it['id'] in used or it['tier'] not in allowed:
+            continue
+        base = [c for c in it.get('from') or [] if c in owned]
+        pri = it['score'] + it['counter'] + 0.04 * it['pick'] - 0.8 * (it['tier'] - t_low) + (1.5 if base else 0)
+        why = []
+        if it['vs_good'] and it['counter'] > 0.5:
+            why.append('contra ' + ', '.join(v['name'] for v in it['vs_good']))
+        if base:
+            why.append('se face din ' + ', '.join(items[c]['name'] for c in base if c in items))
+        if not why:
+            why.append(f"luat in {it['pick']:.0f}% din meciuri, {it['wr']:.1f}% win rate")
+        best.append((pri, {**it, 'why': '; '.join(why)}))
+    best.sort(key=lambda p: -p[0])
+    return [b for _, b in best[:count]]

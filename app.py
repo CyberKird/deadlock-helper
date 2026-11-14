@@ -19,7 +19,8 @@ sys.path.insert(0, ROOT)
 from engine import bug_report                         # noqa: E402
 from engine.assets import Assets                      # noqa: E402
 from engine.game import Grabber, dpi_aware, find_game  # noqa: E402
-from engine.stats import Stats                        # noqa: E402
+from engine import hud                                # noqa: E402
+from engine.stats import Stats, next_items            # noqa: E402
 from engine.vision import TopBar, Tracker, load_templates, slot_centers   # noqa: E402
 
 import cv2                                            # noqa: E402
@@ -33,6 +34,8 @@ VERSION = os.environ.get('DLH_VERSION', 'dev')
 SCAN_EVERY = 2.5        # s intre citiri cat cautam eroii
 VERIFY_EVERY = 8.0      # s intre verificari dupa ce i-am gasit pe toti
 IDLE_EVERY = 3.0        # s intre verificari cand jocul nu ruleaza
+BOTTOM_EVERY = 3.0      # s intre citirile itemelor tale
+BOTTOM = hud.BOTTOM
 
 
 def log(*a):
@@ -63,6 +66,13 @@ class Engine:
         self.rec_error = None
         self.manual = None          # {'hero': id, 'enemies': [...]} cand alegi de mana
         self.bad_reads = 0
+        self.last_top = 0.0
+        self.own_reader = None
+        self.inventory = None
+        self.own_hero = None
+        self.own_votes = {}
+        self.owned = {}             # slot -> item_id, din HUD
+        self.inv_pending = None
         self.last_band = None
         self.last_x = None
         self.empty_reads = 0
@@ -93,6 +103,11 @@ class Engine:
         if missing:
             log('carduri lipsa:', missing)
         self.topbar = TopBar(load_templates(self.assets, os.path.join(HOME, 'learned')))
+        abil = {hid: [self.assets.image_path('abil', a['id']) for a in h.get('abilities', [])]
+                for hid, h in self.assets.heroes.items()}
+        self.own_reader = hud.OwnHero({k: v for k, v in abil.items() if all(os.path.exists(p) for p in v)})
+        self.inventory = hud.Inventory({iid: self.assets.image_path('item', iid) for iid in self.assets.items
+                                        if os.path.exists(self.assets.image_path('item', iid))})
         emit({'t': 'hello', 'img': self.assets.img, 'home': HOME,
               'heroes': sorted(({'id': h['id'], 'name': h['name']} for h in self.assets.heroes.values()),
                                key=lambda h: h['name'])})
@@ -114,8 +129,7 @@ class Engine:
             slot = c.get('slot')
             tr.manual_own = int(slot) if slot is not None else None
         elif cmd == 'reset':
-            tr.reset()
-            self.rec = self.rec_key = None
+            self.new_match()
         elif cmd == 'manual':
             hero = c.get('hero')
             enemies = [int(e) for e in c.get('enemies') or [] if e]
@@ -163,48 +177,92 @@ class Engine:
         self.game = g
         if not g or not g.get('rect'):
             if self.view in ('match', 'searching') and time.time() - self.last_seen > 20:
-                self.tracker.reset()
+                self.new_match()
             self.view = 'idle'
             return IDLE_EVERY
         if g.get('minimized') or not g.get('foreground'):
             return IDLE_EVERY       # alt-tab: pe ecran nu e jocul, nu are rost sa citim
         x0, y0, x1, y1 = g['rect']
-        frame = g['img'][:int((y1 - y0) * 0.125)] if 'img' in g else grabber.top(g['rect'])
-        band, cx = TopBar.strip(frame, (x1 - x0) / 2, game_h=y1 - y0)
-        self.last_band = (band, cx)
+        gh, gw = y1 - y0, x1 - x0
+        now = time.time()
         tr = self.tracker
         known = {i: h for i, h in enumerate(tr.locked) if h}
-        if tr.complete() and tr.own_slot() is not None and len(known) == 12:
-            # verificare ieftina: aceiasi eroi, acelasi meci?
-            slots = self.topbar.read(band, cx, only=known)
-            ok = sum(1 for s in slots if s and s['raw'] > 0.45)
-            if ok >= 6:
-                self.bad_reads = 0
-                self.last_seen = time.time()
-                self.view = 'match'
+        complete = tr.complete() and len(known) == 12
+        wait = SCAN_EVERY
+        if not complete or now - self.last_top >= VERIFY_EVERY:
+            self.last_top = now
+            frame = g['img'][:int(gh * 0.125)] if 'img' in g else grabber.top(g['rect'])
+            band, cx = TopBar.strip(frame, gw / 2, game_h=gh)
+            self.last_band = (band, cx)
+            if complete:
+                self.verify_top(band, cx, known)
             else:
-                self.bad_reads += 1
-                if self.bad_reads >= 3:     # HUD ascuns (meniu, hideout) sau alt meci
-                    full = self.topbar.read(band, cx)
-                    if sum(1 for s in full if s and s['raw'] > 0.7) >= 6:
-                        log('meci nou: eroi diferiti')
-                        tr.reset()
-                        self.rec = self.rec_key = None
-                    self.bad_reads = 0
-            return VERIFY_EVERY
-        slots = self.topbar.read(band, cx)
-        self.last_x = [s['x'] if s else None for s in slots]
-        seen = tr.update(slots)
-        if seen >= 4:
+                slots = self.topbar.read(band, cx)
+                self.last_x = [s['x'] if s else None for s in slots]
+                seen = tr.update(slots)
+                if seen >= 4:
+                    self.last_seen = now
+                    self.view = 'match'
+                    self.empty_reads = 0
+                else:
+                    if self.view != 'match' or now - self.last_seen > 60:
+                        self.view = 'searching'
+                    # fara bara de sus (meniu, hideout, ecran de incarcare): citim tot mai rar
+                    self.empty_reads += 1
+                    wait = min(SCAN_EVERY * (1 + self.empty_reads // 3), 10.0)
+        if self.view == 'match':
+            bottom = g['img'][int(gh * (1 - BOTTOM)):] if 'img' in g else grabber.bottom(g['rect'], BOTTOM)
+            self.read_bottom(bottom, gw, gh)
+            wait = min(wait, BOTTOM_EVERY)
+        return wait
+
+    def verify_top(self, band, cx, known):
+        """Verificare ieftina: aceiasi eroi, acelasi meci?"""
+        slots = self.topbar.read(band, cx, only=known)
+        if sum(1 for s in slots if s and s['raw'] > 0.45) >= 6:
+            self.bad_reads = 0
             self.last_seen = time.time()
             self.view = 'match'
-            self.empty_reads = 0
-            return SCAN_EVERY
-        if self.view != 'match' or time.time() - self.last_seen > 60:
-            self.view = 'searching'
-        # fara bara de sus (meniu, hideout, ecran de incarcare): citim tot mai rar
-        self.empty_reads += 1
-        return min(SCAN_EVERY * (1 + self.empty_reads // 3), 10.0)
+            return
+        self.bad_reads += 1
+        if self.bad_reads >= 3:     # HUD ascuns (meniu, hideout) sau alt meci
+            full = self.topbar.read(band, cx)
+            if sum(1 for s in full if s and s['raw'] > 0.7) >= 6:
+                log('meci nou: eroi diferiti')
+                self.new_match()
+            self.bad_reads = 0
+
+    def read_bottom(self, bottom, gw, gh):
+        img, top = hud.normalize(bottom, gh)
+        cx = gw * hud.REF_H / gh / 2
+        tr = self.tracker
+        # eroul tau, dupa abilitati: o data confirmat, nu se mai schimba in meciul asta
+        if self.own_hero is None and self.own_reader:
+            locked = [h for h in tr.heroes() if h]
+            cands = set(locked) if len(locked) >= 8 else None
+            res = self.own_reader.read(img, top, cx, cands)
+            if len(res) >= 2 and res[0][0] > 0.65 and res[0][0] - res[1][0] > 0.12:
+                h = res[0][1]
+                self.own_votes[h] = self.own_votes.get(h, 0) + 1
+                if self.own_votes[h] >= 2:
+                    self.own_hero = h
+                    log(f'eroul tau (dupa abilitati): {h}')
+        heroes = tr.heroes()
+        tr.ability_own = heroes.index(self.own_hero) if self.own_hero in heroes else None
+        # itemele tale: acceptam o schimbare doar daca doua citiri la rand spun la fel
+        if self.inventory:
+            got = {slot: iid for slot, iid, _ in self.inventory.read(img, top, self.owned)}
+            if got == self.inv_pending or (got and set(got.values()) > set(self.owned.values())):
+                self.owned = got
+            self.inv_pending = got
+
+    def new_match(self):
+        self.tracker.reset()
+        self.rec = self.rec_key = None
+        self.own_hero = None
+        self.own_votes = {}
+        self.owned = {}
+        self.inv_pending = None
 
     # --- echipe si recomandare ------------------------------------------------------------
 
@@ -239,7 +297,8 @@ class Engine:
 
         def work():
             try:
-                rec = self.stats.recommend(hero, list(enemies), self.assets.items, names)
+                rec = self.stats.recommend(hero, list(enemies), self.assets.items, names,
+                                           self.assets.ability_names)
                 if self.rec_key == key:
                     self.rec = rec
             except Exception as e:
@@ -262,7 +321,16 @@ class Engine:
             slots.append({'slot': i, 'hero': h, 'name': names.get(h), 'side': side,
                           'manual': i in self.tracker.manual, 'you': i == own})
         g = self.game or {}
-        emit({'t': 'state', 'view': 'manual' if self.manual and self.view != 'match' else self.view,
+        items = self.assets.items
+        owned = []
+        imb = (self.rec or {}).get('imbue') or {}
+        for slot, iid in sorted(self.owned.items()):
+            it = items.get(iid)
+            if it:
+                owned.append({'id': iid, 'name': it['name'], 'slot': it['slot'], 'tier': it['tier'],
+                              'imbue': imb.get(iid) if it.get('imbue') else None})
+        nxt = next_items(self.rec, list(self.owned.values()), items) if self.rec else []
+        emit({'t': 'state', 'owned': owned, 'next': nxt, 'own_hero': self.own_hero, 'view': 'manual' if self.manual and self.view != 'match' else self.view,
               'game': {'running': bool(g), 'rect': None if 'img' in g else g.get('rect'),
                        'foreground': g.get('foreground', False)},
               'slots': slots, 'own': own, 'rec': self.rec, 'busy': self.rec_busy,
@@ -303,7 +371,7 @@ class Engine:
                 self.maybe_recommend()
             snap = json.dumps([self.view, self.tracker.heroes(), self.tracker.own_slot(), self.rec_key,
                                self.rec_busy, self.rec_error, bool(self.game), (self.game or {}).get('rect'),
-                               self.manual, id(self.rec)])
+                               self.manual, id(self.rec), sorted(self.owned.items()), self.own_hero])
             if snap != last_push:
                 last_push = snap
                 self.push()

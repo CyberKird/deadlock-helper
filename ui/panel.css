@@ -176,3 +176,21 @@ footer select {
 #tip .t { font-weight: 600; margin-bottom: 3px; }
 #tip .l { color: var(--dim); }
 #tip .l b { color: var(--text); font-weight: 500; }
+
+/* --- cumpara acum --- */
+.now .big {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 8px; margin: 0 -4px 4px; border-radius: 8px;
+  background: rgba(217, 178, 107, .09); box-shadow: inset 0 0 0 1px rgba(217, 178, 107, .28);
+}
+.now .big .ico { width: 38px; height: 38px; border-radius: 6px; }
+.now .big .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.now .big .name { font-size: 13px; font-weight: 600; }
+.now .big .why { color: var(--dim); font-size: 10.5px; }
+.now .big .imbue { color: var(--gold); font-size: 10.5px; }
+.now .big .cost { color: var(--gold); font-variant-numeric: tabular-nums; font-size: 12px; }
+.owned { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.owned .label { width: 20px; font-size: 10.5px; color: var(--dim); flex: none; }
+.owned .chip { padding: 2px; gap: 4px; border-radius: 6px; }
+.owned .chip .ico { width: 22px; height: 22px; border-radius: 4px; }
+.owned .chip .imb { font-size: 10px; color: var(--gold); padding-right: 5px; }

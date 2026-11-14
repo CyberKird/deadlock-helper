@@ -104,6 +104,40 @@ function teamsManual() {
   return h + '</section>'
 }
 
+const imbueText = imb => imb?.length ? `imbue pe ${esc(imb[0].name)}` : ''
+
+// Ce sa cumperi acum: primul item mare, inca doua variante, apoi ce ai deja.
+function buyNow(st, rec) {
+  const next = st.next || []
+  const owned = st.owned || []
+  if (!next.length && !owned.length) return ''
+  let h = `<section class="now"><h2>Cumpara acum <span class="note">din ce ai deja</span></h2>`
+  if (next.length) {
+    const it = next[0]
+    h += `<div class="big" data-item="${it.id}">
+      <span class="ico ${it.slot}" style="background-image:url(${img('item', it.id)})"></span>
+      <span class="txt"><span class="name">${esc(it.name)}</span>
+        <span class="why">${esc(it.why)}</span>
+        ${it.imbue ? `<span class="imbue">${imbueText(it.imbue)} (${it.imbue[0].share}% din build-uri)</span>` : ''}</span>
+      <span class="cost">${it.cost}</span></div>`
+    for (const alt of next.slice(1, 3)) {
+      h += `<div class="row" data-item="${alt.id}">
+        <span class="ico ${alt.slot}" style="background-image:url(${img('item', alt.id)})"></span>
+        <span class="name">${esc(alt.name)}<span class="why">${esc(alt.why)}</span></span>
+        <span class="num">${alt.cost}</span></div>`
+    }
+  }
+  if (owned.length) {
+    h += `<div class="owned"><span class="label">Ai</span><div class="chips">`
+    for (const o of owned) {
+      const hint = o.imbue ? `${o.name}: ${imbueText(o.imbue)} (${o.imbue[0].share}% din build-uri)` : o.name
+      h += `<span class="chip ${o.slot}" data-hint="${esc(hint)}"><span class="ico ${o.slot}" style="background-image:url(${img('item', o.id)})"></span>${o.imbue ? `<span class="imb">${esc(o.imbue[0].name)}</span>` : ''}</span>`
+    }
+    h += '</div></div>'
+  }
+  return h + '</section>'
+}
+
 function itemRow(it, mode) {
   let why = '', num = ''
   if (mode === 'counter') {
@@ -132,22 +166,23 @@ function recommendation(st) {
     return ''
   }
   for (const k in items) delete items[k]
-  const all = [...rec.counter_picks, ...rec.avoid, ...rec.tiers.flatMap(t => t.items)]
-  for (const it of all) items[it.id] = it
+  const all = [...(rec.pool || []), ...rec.counter_picks, ...rec.avoid, ...rec.tiers.flatMap(t => t.items), ...(st.next || [])]
+  for (const it of all) items[it.id] = { ...items[it.id], ...it }
   let h = ''
   if (st.busy) h += `<section><div class="hint">Actualizez build-ul...</div></section>`
+  h += buyNow(st, rec)
   if (rec.counter_picks.length) {
     h += `<section><h2>Contra lor <span class="note">fata de cum merge de obicei</span></h2>`
-    h += rec.counter_picks.slice(0, 4).map(it => itemRow(it, 'counter')).join('') + '</section>'
+    h += rec.counter_picks.slice(0, 3).map(it => itemRow(it, 'counter')).join('') + '</section>'
   }
   h += `<section><h2>Build ${esc(rec.hero_name)} <span class="note">win rate</span></h2>`
   for (const t of rec.tiers) {
     if (!t.items.length) continue
     h += `<div class="tier"><span class="cost">${t.cost}</span><div class="items">`
-    h += t.items.slice(0, 3).map(it => itemRow(it, 'build')).join('') + '</div></div>'
+    h += t.items.slice(0, 2).map(it => itemRow(it, 'build')).join('') + '</div></div>'
   }
   h += '</section>'
-  if (rec.avoid.length) {
+  if (rec.avoid.length && !(st.owned || []).length) {
     h += `<section><h2>Mai slabe acum <span class="note">populare, dar nu contra lor</span></h2>`
     h += rec.avoid.map(it => itemRow(it, 'avoid')).join('') + '</section>'
   }
@@ -224,6 +259,7 @@ function showTip(it, row) {
   let h = `<div class="t">${esc(it.name)} <span class="l">${it.cost}</span></div>`
   h += `<div class="l">Win rate <b>${it.wr.toFixed(1)}%</b> in ${it.n.toLocaleString('ro-RO')} meciuri, luat in <b>${it.pick.toFixed(0)}%</b> din ele</div>`
   if (it.buy_min) h += `<div class="l">Cumparat de obicei pe la minutul <b>${it.buy_min}</b></div>`
+  if (it.imbue?.length) h += `<div class="l">Imbue: <b>${it.imbue.map(i => `${esc(i.name)} ${i.share}%`).join(', ')}</b> din build-urile populare</div>`
   for (const v of it.vs_good) h += `<div class="l">Contra ${esc(v.name)}: <b class="num good">${sign(v.d)}%</b></div>`
   for (const v of it.vs_bad) h += `<div class="l">Contra ${esc(v.name)}: <b class="num bad">${sign(v.d)}%</b></div>`
   tip.innerHTML = h

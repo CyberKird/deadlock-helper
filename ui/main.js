@@ -15,7 +15,9 @@ const HOTKEY = 'Control+Alt+D'
 const WIDTH = 340             // px CSS
 const ROOT = path.join(__dirname, '..')
 // setari, cache, sabloane invatate: in %APPDATA%, nu langa exe (un update il reinstaleaza)
-const HOME = path.join(app.getPath('appData'), 'deadlock-helper')
+// test: DLH_PROFILE=<nume> = profil separat (date si instanta proprii), langa aplicatia instalata
+if (process.env.DLH_PROFILE) app.setPath('userData', path.join(app.getPath('temp'), 'dlh-' + process.env.DLH_PROFILE))
+const HOME = process.env.DLH_PROFILE ? path.join(app.getPath('userData'), 'home') : path.join(app.getPath('appData'), 'deadlock-helper')
 fs.mkdirSync(HOME, { recursive: true })
 const ICON = app.isPackaged ? path.join(process.resourcesPath, 'icon.ico') : path.join(ROOT, 'icon.ico')
 
@@ -166,6 +168,7 @@ function place() {
   const cur = screen.getDisplayNearestPoint({ x: x + 20, y: y + 20 }).bounds
   x = clamp(x, cur.x, cur.x + cur.width - WIDTH)
   y = clamp(y, cur.y, cur.y + cur.height - h)
+  if (process.env.DLH_SHOT) { x = -6000; y = 0 }          // test: in afara ecranului, nu peste jocul tau
   const b = panel.getBounds()
   if (b.x !== x || b.y !== y || b.width !== WIDTH || b.height !== h) panel.setBounds({ x, y, width: WIDTH, height: h })
   if (!panel.isVisible()) panel.showInactive()

@@ -68,13 +68,20 @@ def find_game():
 
 class Grabber:
     def __init__(self):
-        self.sct = mss.mss()
+        self.sct = mss.MSS() if hasattr(mss, 'MSS') else mss.mss()
 
     def top(self, rect, frac=0.125):
         """Banda de sus a jocului (BGR), toata latimea."""
         x0, y0, x1, y1 = rect
         h = max(1, int((y1 - y0) * frac))
         shot = self.sct.grab({'left': x0, 'top': y0, 'width': x1 - x0, 'height': h})
+        return np.ascontiguousarray(np.asarray(shot)[:, :, :3])
+
+    def bottom(self, rect, frac):
+        """Banda de jos a jocului (BGR), toata latimea."""
+        x0, y0, x1, y1 = rect
+        h = max(1, int((y1 - y0) * frac))
+        shot = self.sct.grab({'left': x0, 'top': y1 - h, 'width': x1 - x0, 'height': h})
         return np.ascontiguousarray(np.asarray(shot)[:, :, :3])
 
     def close(self):
