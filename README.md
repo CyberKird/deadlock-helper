@@ -1,4 +1,6 @@
-# Deadlock Helper
+# Soulsight
+
+(fost Deadlock Helper)
 
 Un overlay local pentru Deadlock. Recunoaște eroii din bara de sus a HUD-ului, află care ești tu și îți arată cele mai bune iteme pentru eroul tău, contra echipei adverse. Datele vin din patch-ul curent.
 
@@ -28,7 +30,7 @@ Aplicația are două bucăți: **motorul** (Python, `app.py` + `engine/`) și **
 
 ## Instalare
 
-**Din exe:** rulezi `Deadlock-Helper.exe`. Se instalează singur (fără întrebări, fără drepturi de admin), pune o scurtătură pe desktop și pornește. Windows SmartScreen poate avertiza la prima rulare, pentru că exe-ul nu e semnat: `More info`, apoi `Run anyway`. Update-urile se descarcă singure în fundal și se instalează când închizi aplicația. Cât jocul e închis, aplicația repornește singură pe versiunea nouă.
+**Din exe:** rulezi `Soulsight.exe`. Se instalează singur (fără întrebări, fără drepturi de admin), pune o scurtătură pe desktop și pornește. Windows SmartScreen poate avertiza la prima rulare, pentru că exe-ul nu e semnat: `More info`, apoi `Run anyway`. Update-urile se descarcă singure în fundal și se instalează când închizi aplicația. Cât jocul e închis, aplicația repornește singură pe versiunea nouă.
 
 **Din sursă:** `INSTALL.bat` (cere Python 3.11+ și Node.js), apoi `START.bat`.
 
@@ -40,10 +42,10 @@ Aplicația are două bucăți: **motorul** (Python, `app.py` + `engine/`) și **
 .venv\Scripts\python -m pip install -r requirements-dev.txt
 .venv\Scripts\pyinstaller engine.spec --noconfirm --clean      # -> dist\dlh-engine\
 dist\dlh-engine\dlh-engine.exe --selfcheck
-cd ui && npx electron-builder --win nsis --publish never        # -> dist\Deadlock-Helper.exe
+cd ui && npx electron-builder --win nsis --publish never        # -> dist\Soulsight.exe
 ```
 
-Versiunea e una singură, în `ui/package.json`: o ridici înainte de build, egală cu tag-ul Release-ului. În Release pui trei fișiere din `dist\`: `Deadlock-Helper.exe`, `Deadlock-Helper.exe.blockmap` și `latest.yml`.
+Versiunea e una singură, în `ui/package.json`: o ridici înainte de build, egală cu tag-ul Release-ului. În Release pui trei fișiere din `dist\`: `Soulsight.exe`, `Soulsight.exe.blockmap` și `latest.yml`.
 
 ## Verificare
 

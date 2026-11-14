@@ -1,4 +1,4 @@
-"""Motorul Deadlock Helper.
+"""Motorul Soulsight (fost Deadlock Helper).
 
 Ruleaza ca proces copil al interfetei (ui/, Electron). Scrie starea pe stdout,
 cate un JSON pe linie, si primeste comenzi pe stdin. Fara interfata:

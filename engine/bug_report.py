@@ -104,7 +104,7 @@ def send(description, email, diagnostics, version, timeout=10, lang="en"):
     if _last_sent and wait > 0:
         return False, _t(lang, "wait", int(wait))
     payload = {
-        "_subject": f"[Deadlock Helper {version}] bug report",
+        "_subject": f"[Soulsight {version}] bug report",
         "_template": "box",
         "_captcha": "false",
         "_honey": "",
@@ -132,7 +132,7 @@ def send(description, email, diagnostics, version, timeout=10, lang="en"):
 def mailto(description, diagnostics, version):
     """Rezerva: un mailto: precompletat (limitat ca lungime de Windows)."""
     q = urllib.parse.urlencode(
-        {"subject": f"[Deadlock Helper {version}] bug report",
+        {"subject": f"[Soulsight {version}] bug report",
          "body": description.strip()[:900] + "\n\n--\n" + diagnostics[:600]},
         quote_via=urllib.parse.quote)
     webbrowser.open(f"mailto:{TO}?{q}")

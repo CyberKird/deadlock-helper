@@ -1,5 +1,5 @@
 'use strict'
-// Interfata Deadlock Helper: panoul peste joc si fereastra de raport. Logica e in
+// Interfata Soulsight (fost Deadlock Helper): panoul peste joc si fereastra de raport. Logica e in
 // motorul Python (../app.py, in exe: resources/engine/dlh-engine.exe), pornit ca
 // proces copil: el scrie starea pe stdout (JSON pe linie), noi ii trimitem comenzi
 // pe stdin.
@@ -15,6 +15,8 @@ const HOTKEY = 'Control+Alt+D'
 const WIDTH = 340             // px CSS
 const ROOT = path.join(__dirname, '..')
 // setari, cache, sabloane invatate: in %APPDATA%, nu langa exe (un update il reinstaleaza)
+// numele afisat s-a schimbat (Soulsight), folderul Electron ramane cel vechi
+app.setPath('userData', path.join(app.getPath('appData'), 'Deadlock Helper'))
 // test: DLH_PROFILE=<nume> = profil separat (date si instanta proprii), langa aplicatia instalata
 if (process.env.DLH_PROFILE) app.setPath('userData', path.join(app.getPath('temp'), 'dlh-' + process.env.DLH_PROFILE))
 const HOME = process.env.DLH_PROFILE ? path.join(app.getPath('userData'), 'home') : path.join(app.getPath('appData'), 'deadlock-helper')
@@ -130,7 +132,7 @@ function overlay(url, extra = {}) {
   const win = new BrowserWindow({
     show: false, frame: false, transparent: true, resizable: false, maximizable: false,
     minimizable: false, fullscreenable: false, hasShadow: false, thickFrame: false, skipTaskbar: true,
-    alwaysOnTop: true, backgroundColor: '#00000000', title: 'Deadlock Helper',
+    alwaysOnTop: true, backgroundColor: '#00000000', title: 'Soulsight',
     icon: fs.existsSync(ICON) ? ICON : undefined,
     // focusable: false = un click pe panou nu ia focusul jocului
     focusable: false, width: WIDTH, height: 200,
@@ -223,7 +225,7 @@ let report = null
 
 function openReport() {
   if (report) { report.show(); report.focus(); return }
-  report = overlay('dlh://ui/report.html', { focusable: true, title: 'Deadlock Helper', width: 420 })
+  report = overlay('dlh://ui/report.html', { focusable: true, title: 'Soulsight', width: 420 })
   report.on('closed', () => { report = null })
 }
 

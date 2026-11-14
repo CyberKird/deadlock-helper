@@ -1,8 +1,8 @@
 {
   "name": "deadlock-helper",
-  "productName": "Deadlock Helper",
-  "version": "0.3.0",
-  "description": "Overlay local pentru Deadlock: recunoaste eroii din HUD si recomanda iteme contra echipei adverse.",
+  "productName": "Soulsight",
+  "version": "0.4.0",
+  "description": "Soulsight: overlay local pentru Deadlock, recunoaste eroii din HUD si recomanda iteme contra echipei adverse.",
   "author": "Joltarise",
   "license": "UNLICENSED",
   "private": true,
@@ -20,9 +20,10 @@
   },
   "build": {
     "appId": "com.joltarise.deadlockhelper",
-    "productName": "Deadlock Helper",
+    "productName": "Soulsight",
     "directories": {
-      "output": "../dist"
+      "output": "../dist",
+      "buildResources": "build"
     },
     "files": [
       "main.js",
@@ -51,12 +52,13 @@
     "nsis": {
       "oneClick": true,
       "perMachine": false,
-      "artifactName": "Deadlock-Helper.exe",
-      "shortcutName": "Deadlock Helper",
+      "artifactName": "Soulsight.exe",
+      "shortcutName": "Soulsight",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "runAfterFinish": true,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
     },
     "publish": [
       {
