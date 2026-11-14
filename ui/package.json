@@ -1,0 +1,68 @@
+{
+  "name": "deadlock-helper",
+  "productName": "Deadlock Helper",
+  "version": "0.1.0",
+  "description": "Overlay local pentru Deadlock: recunoaste eroii din HUD si recomanda iteme contra echipei adverse.",
+  "author": "Joltarise",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "^26.18.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  },
+  "build": {
+    "appId": "com.joltarise.deadlockhelper",
+    "productName": "Deadlock Helper",
+    "directories": {
+      "output": "../dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "*.html",
+      "*.css",
+      "panel.js",
+      "report.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist/dlh-engine",
+        "to": "engine"
+      },
+      {
+        "from": "../icon.ico",
+        "to": "icon.ico"
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": "nsis",
+      "icon": "../icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "Deadlock-Helper.exe",
+      "shortcutName": "Deadlock Helper",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "CyberKird",
+        "repo": "deadlock-helper"
+      }
+    ]
+  }
+}
