@@ -18,7 +18,7 @@ sys.path.insert(0, ROOT)
 
 from engine import bug_report                         # noqa: E402
 from engine.assets import Assets                      # noqa: E402
-from engine.game import Grabber, dpi_aware, find_game  # noqa: E402
+from engine.game import Grabber, dpi_aware, find_game, show_in_taskbar  # noqa: E402
 from engine import hud                                # noqa: E402
 from engine.stats import Stats, next_items            # noqa: E402
 from engine.vision import TopBar, Tracker, load_templates, slot_centers   # noqa: E402
@@ -65,6 +65,7 @@ class Engine:
         self.rec_busy = False
         self.rec_error = None
         self.manual = None          # {'hero': id, 'enemies': [...]} cand alegi de mana
+        self.lang = 'ro' if os.environ.get('DLH_LANG') == 'ro' else 'en'
         self.bad_reads = 0
         self.last_top = 0.0
         self.own_reader = None
@@ -146,11 +147,17 @@ class Engine:
                   'text': bug_report.build_diagnostics(VERSION, HOME, self)})
         elif cmd == 'report':
             def work(msg=c):
-                problem = bug_report.validate(msg.get('desc', ''), msg.get('email', ''))
-                ok, text = (False, problem) if problem else bug_report.send(
-                    msg.get('desc', ''), msg.get('email', ''), msg.get('diag', ''), VERSION)
-                emit({'t': 'reply', 'id': msg.get('id'), 'ok': ok, 'text': text})
+                problem = bug_report.validate(msg.get('desc', ''), msg.get('email', ''), self.lang)
+                if problem:
+                    ok, text, kind = False, problem, 'validate'
+                else:
+                    ok, text = bug_report.send(msg.get('desc', ''), msg.get('email', ''), msg.get('diag', ''),
+                                               VERSION, lang=self.lang)
+                    kind = 'send'
+                emit({'t': 'reply', 'id': msg.get('id'), 'ok': ok, 'text': text, 'kind': kind})
             threading.Thread(target=work, daemon=True).start()
+        elif cmd == 'lang':
+            self.lang = 'ro' if c.get('value') == 'ro' else 'en'
         elif cmd == 'mailto':
             bug_report.mailto(c.get('desc', ''), c.get('diag', ''), VERSION)
 
@@ -303,7 +310,7 @@ class Engine:
                     self.rec = rec
             except Exception as e:
                 log('recomandare:', repr(e))
-                self.rec_error = 'statisticile nu raspund acum, reincerc'
+                self.rec_error = 'stats_down'
                 self.rec_key = None
                 time.sleep(20)
             finally:
@@ -383,9 +390,13 @@ class Engine:
             if not line:
                 continue
             try:
-                self.cmds.put(json.loads(line))
+                c = json.loads(line)
             except ValueError:
-                pass
+                continue
+            if c.get('cmd') == 'taskbar':        # imediat, nu dupa incarcarea datelor
+                show_in_taskbar(c.get('hwnd'), os.environ.get('DLH_UI_PID'))
+            else:
+                self.cmds.put(c)
         self.cmds.put(None)         # interfata s-a inchis: iesim si noi
 
 

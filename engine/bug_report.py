@@ -32,22 +32,22 @@ _last_sent = 0.0
 
 def build_diagnostics(version, home, engine=None):
     """Blocul de diagnostic, ca text. Orice sursa lipsa e sarita, nu crapa."""
-    lines = [f"versiune: {version}",
+    lines = [f"version: {version}",
              f"windows: {platform.platform()}",
              f"frozen: {getattr(sys, 'frozen', False)}"]
     if engine is not None:
         try:
             g = engine.game or {}
-            lines.append(f"stare: {engine.view}, joc: {'da' if g else 'nu'}, fereastra: {g.get('rect')}, "
-                         f"scala HUD: {engine.topbar.scale if engine.topbar else '-'}")
+            lines.append(f"view: {engine.view}, game: {'yes' if g else 'no'}, window: {g.get('rect')}, "
+                         f"HUD scale: {engine.topbar.scale if engine.topbar else '-'}, lang: {engine.lang}")
             names = {h: v['name'] for h, v in engine.assets.heroes.items()}
             heroes = [names.get(h, '-') for h in engine.tracker.heroes()]
-            lines.append(f"eroi: {', '.join(heroes)}; slotul tau: {engine.tracker.own_slot()}")
-            lines.append(f"corectate de mana: {sorted(engine.tracker.manual)}; rang: {engine.stats.badge}")
+            lines.append(f"heroes: {', '.join(heroes)}; your slot: {engine.tracker.own_slot()}; your hero: {engine.own_hero}")
+            lines.append(f"corrected by hand: {sorted(engine.tracker.manual)}; rank: {engine.stats.badge}; items: {sorted(engine.owned.values())}")
             if engine.rec_error:
-                lines.append(f"statistici: {engine.rec_error}")
+                lines.append(f"stats: {engine.rec_error}")
         except Exception as e:
-            lines.append(f"(diagnostic incomplet: {type(e).__name__})")
+            lines.append(f"(diagnostics incomplete: {type(e).__name__})")
     for name in ("eroare.log", "engine.log"):
         try:
             with open(os.path.join(home, name), encoding="utf-8") as f:
@@ -57,24 +57,52 @@ def build_diagnostics(version, home, engine=None):
     return "\n".join(lines)
 
 
-def validate(description, email):
+TEXT = {
+    "ro": {
+        "short": "Descrie problema in cateva cuvinte (minim 10 caractere).",
+        "long": "Prea lung (maxim {n} caractere).",
+        "email": "Adresa de email nu pare valida (las-o goala daca nu vrei raspuns).",
+        "wait": "Asteapta {n}s inainte de un nou raport.",
+        "sent": "Trimis. Multumim!",
+        "inactive": "Raportarea nu e activata inca pe server. Foloseste Deschide emailul.",
+        "status": "Serverul a raspuns {n}.",
+        "failed": "Nu am putut trimite ({n}).",
+    },
+    "en": {
+        "short": "Describe the problem in a few words (at least 10 characters).",
+        "long": "Too long (at most {n} characters).",
+        "email": "That email address does not look valid (leave it empty if you do not want a reply).",
+        "wait": "Wait {n}s before sending another report.",
+        "sent": "Sent. Thank you!",
+        "inactive": "Reporting is not activated on the server yet. Use Open email.",
+        "status": "The server answered {n}.",
+        "failed": "Could not send ({n}).",
+    },
+}
+
+
+def _t(lang, key, n=""):
+    return TEXT.get(lang, TEXT["en"])[key].format(n=n)
+
+
+def validate(description, email, lang="en"):
     """Mesaj de eroare pentru utilizator, sau None daca e ok."""
     if len(description.strip()) < 10:
-        return "Descrie problema in cateva cuvinte (minim 10 caractere)."
+        return _t(lang, "short")
     if len(description) > MAX_TEXT:
-        return f"Prea lung (maxim {MAX_TEXT} caractere)."
+        return _t(lang, "long", MAX_TEXT)
     email = email.strip()
     if email and not ("@" in email and "." in email.split("@")[-1] and " " not in email):
-        return "Adresa de email nu pare valida (las-o goala daca nu vrei raspuns)."
+        return _t(lang, "email")
     return None
 
 
-def send(description, email, diagnostics, version, timeout=10):
+def send(description, email, diagnostics, version, timeout=10, lang="en"):
     """Trimite raportul. Intoarce (ok, mesaj). Nu ridica niciodata exceptii."""
     global _last_sent
     wait = COOLDOWN - (time.monotonic() - _last_sent)
     if _last_sent and wait > 0:
-        return False, f"Asteapta {int(wait)}s inainte de un nou raport."
+        return False, _t(lang, "wait", int(wait))
     payload = {
         "_subject": f"[Deadlock Helper {version}] bug report",
         "_template": "box",
@@ -92,13 +120,13 @@ def send(description, email, diagnostics, version, timeout=10):
         data = r.json() if r.content else {}
         if r.status_code == 200 and str(data.get("success")).lower() == "true":
             _last_sent = time.monotonic()
-            return True, "Trimis. Multumim!"
+            return True, _t(lang, "sent")
         msg = data.get("message") or ""
         if "Activation" in msg:
-            return False, "Raportarea nu e activata inca pe server. Foloseste DESCHIDE EMAIL."
-        return False, msg or f"Serverul a raspuns {r.status_code}."
+            return False, _t(lang, "inactive")
+        return False, msg or _t(lang, "status", r.status_code)
     except Exception as e:
-        return False, f"Nu am putut trimite ({type(e).__name__})."
+        return False, _t(lang, "failed", type(e).__name__)
 
 
 def mailto(description, diagnostics, version):

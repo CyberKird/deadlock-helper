@@ -29,3 +29,7 @@ input[type=checkbox] { accent-color: var(--gold); width: 14px; height: 14px; }
 .actions .primary:hover { filter: brightness(1.08); }
 .actions .primary:disabled { opacity: .6; cursor: default; }
 .actions .link { color: var(--gold); text-decoration: underline; }
+#diag::-webkit-scrollbar { width: 8px; }
+#diag::-webkit-scrollbar-track { background: transparent; }
+#diag::-webkit-scrollbar-thumb { background: rgba(237, 230, 214, .16); border-radius: 4px; }
+#diag::-webkit-scrollbar-button { display: none; }

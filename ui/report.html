@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ro">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'">
-  <title>Raporteaza o problema</title>
+  <title>Deadlock Helper</title>
   <link rel="stylesheet" href="panel.css">
   <link rel="stylesheet" href="report.css">
 </head>
@@ -11,25 +11,25 @@
   <div id="panel" class="report">
     <header id="bar">
       <span class="mark"></span>
-      <span class="title">Raporteaza o problema</span>
+      <span class="title" data-t="report_title"></span>
       <span class="grow"></span>
-      <button id="close" class="icon-btn" data-hint="Inchide (Esc)">&#215;</button>
+      <button id="close" class="icon-btn">&#215;</button>
     </header>
     <form id="form">
-      <label for="desc">Ce s-a intamplat?</label>
-      <textarea id="desc" rows="6" maxlength="2000" spellcheck="false"
-        placeholder="De exemplu: a recunoscut Haze in loc de Wraith in slotul 3"></textarea>
-      <label for="email">Email, daca vrei raspuns (optional)</label>
+      <label for="desc" data-t="report_what"></label>
+      <textarea id="desc" rows="6" maxlength="2000" spellcheck="false"></textarea>
+      <label for="email" data-t="report_email"></label>
       <input id="email" type="email" maxlength="200" spellcheck="false" autocomplete="email">
-      <label class="check"><input id="include" type="checkbox" checked> Include diagnosticul de mai jos</label>
+      <label class="check"><input id="include" type="checkbox" checked> <span data-t="report_include"></span></label>
       <pre id="diag"></pre>
       <p id="result" role="status"></p>
       <div class="actions">
-        <button id="mail" type="button" class="link" hidden>Deschide emailul</button>
-        <button id="send" type="submit" class="primary">Trimite</button>
+        <button id="mail" type="button" class="link" data-t="report_mail" hidden></button>
+        <button id="send" type="submit" class="primary" data-t="report_send"></button>
       </div>
     </form>
   </div>
+  <script src="i18n.js"></script>
   <script src="report.js"></script>
 </body>
 </html>

@@ -281,13 +281,14 @@ def next_items(rec, owned, items, count=3):
             continue
         base = [c for c in it.get('from') or [] if c in owned]
         pri = it['score'] + it['counter'] + 0.04 * it['pick'] - 0.8 * (it['tier'] - t_low) + (1.5 if base else 0)
+        # motivele ca date: interfata le scrie in limba ta
         why = []
         if it['vs_good'] and it['counter'] > 0.5:
-            why.append('contra ' + ', '.join(v['name'] for v in it['vs_good']))
+            why.append({'k': 'vs', 'names': [v['name'] for v in it['vs_good']]})
         if base:
-            why.append('se face din ' + ', '.join(items[c]['name'] for c in base if c in items))
+            why.append({'k': 'from', 'names': [items[c]['name'] for c in base if c in items]})
         if not why:
-            why.append(f"luat in {it['pick']:.0f}% din meciuri, {it['wr']:.1f}% win rate")
-        best.append((pri, {**it, 'why': '; '.join(why)}))
+            why.append({'k': 'pick', 'pick': it['pick'], 'wr': it['wr']})
+        best.append((pri, {**it, 'why': why}))
     best.sort(key=lambda p: -p[0])
     return [b for _, b in best[:count]]

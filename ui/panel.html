@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ro">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' dlh:; img-src dlh:; style-src 'self' dlh:; style-src-attr 'unsafe-inline'; script-src 'self' dlh:">
@@ -14,14 +14,16 @@
       <span id="status" class="pill"></span>
       <span class="grow"></span>
       <button id="btn-update" class="text-btn" hidden></button>
-      <button id="btn-report" class="icon-btn small" data-hint="Raporteaza o problema">!</button>
-      <button id="btn-collapse" class="icon-btn" data-hint="Strange panoul (CTRL+ALT+D)">&#8211;</button>
-      <button id="btn-close" class="icon-btn" data-hint="Inchide">&#215;</button>
+      <button id="btn-lang" class="icon-btn lang"></button>
+      <button id="btn-report" class="icon-btn small">!</button>
+      <button id="btn-collapse" class="icon-btn">&#8211;</button>
+      <button id="btn-close" class="icon-btn">&#215;</button>
     </header>
     <main id="body"></main>
   </div>
   <div id="picker" hidden></div>
   <div id="tip" hidden></div>
+  <script src="i18n.js"></script>
   <script src="panel.js"></script>
 </body>
 </html>

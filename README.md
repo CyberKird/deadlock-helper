@@ -14,6 +14,9 @@ Un overlay local pentru Deadlock. Recunoaște eroii din bara de sus a HUD-ului, 
 - **Mai slabe acum**: iteme populare care merg mai prost contra echipei lor.
 - **Corectezi cu un click**: apeși pe orice portret și alegi alt erou. Fără meci, alegi de mână eroul tău și inamicii.
 - **Filtru de rang**: doar meciurile de la un anumit rang în sus.
+- **Compact în meci**: vezi doar itemul de cumpărat acum, două alternative și imbue-urile tale; restul e sub „Detalii”, explicațiile la hover.
+- **Română și engleză**: limba se ia din Windows, iar butonul RO/EN din bara panoului o schimbă.
+- **Buton în taskbar**, ca să-l poți fixa (pin), fără să ia focusul jocului.
 
 ## Cum funcționează
 

@@ -23,6 +23,13 @@ const ICON = app.isPackaged ? path.join(process.resourcesPath, 'icon.ico') : pat
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
 
+// limba: aleasa de tine, altfel cea din Windows (romana -> ro, orice altceva -> en)
+function systemLang() {
+  const l = (app.getPreferredSystemLanguages?.()[0] || app.getLocale() || 'en').toLowerCase()
+  return l.startsWith('ro') ? 'ro' : 'en'
+}
+const lang = () => settings.lang || systemLang()
+
 // --- setari ---------------------------------------------------------------------
 
 const SETTINGS = path.join(HOME, 'ui_settings.json')
@@ -44,7 +51,7 @@ function startEngine() {
   const [cmd, args] = app.isPackaged
     ? [path.join(process.resourcesPath, 'engine', 'dlh-engine.exe'), []]
     : [python, [path.join(ROOT, 'app.py')]]
-  const env = { ...process.env, DLH_HOME: HOME, DLH_VERSION: app.getVersion(), PYTHONUNBUFFERED: '1', PYTHONUTF8: '1' }
+  const env = { ...process.env, DLH_LANG: lang(), DLH_UI_PID: String(process.pid), DLH_HOME: HOME, DLH_VERSION: app.getVersion(), PYTHONUNBUFFERED: '1', PYTHONUTF8: '1' }
   const child = spawn(cmd, args, { env, windowsHide: true, cwd: app.isPackaged ? HOME : ROOT })
   engine = child
   let buf = '', err = ''
@@ -151,6 +158,10 @@ function createPanel() {
   })
   panel.webContents.on('did-finish-load', () => { push(); place() })
   panel.on('closed', () => app.quit())
+  // butonul din taskbar (pin): il pune motorul, dupa ce fereastra exista
+  const hwnd = panel.getNativeWindowHandle().readBigUInt64LE().toString()
+  panel.once('show', () => command({ cmd: 'taskbar', hwnd }))
+  setTimeout(() => command({ cmd: 'taskbar', hwnd }), 3000)
 }
 
 // Implicit: marginea din dreapta a ecranului jocului, putin sub bara de sus.
@@ -177,7 +188,7 @@ function place() {
 function push() {
   if (!panel || panel.isDestroyed()) return
   panel.webContents.send('state', {
-    state, heroes: hello?.heroes || [], error: engineError, collapsed: ui.collapsed, hotkey: 'CTRL+ALT+D',
+    state, heroes: hello?.heroes || [], error: engineError, lang: lang(), collapsed: ui.collapsed, hotkey: 'CTRL+ALT+D',
     version: app.getVersion(), update: { tag: update.tag, busy: update.busy, why: update.why },
   })
 }
@@ -189,6 +200,12 @@ ipcMain.on('cmd', (_e, c) => {
   else if (c.cmd === 'collapse') toggle()
   else if (c.cmd === 'home') { save('pos', null); place() }
   else if (c.cmd === 'report') openReport()
+  else if (c.cmd === 'lang' && ['ro', 'en'].includes(c.value)) {
+    save('lang', c.value)
+    command({ cmd: 'lang', value: c.value })
+    push()
+    report?.webContents.send('lang', c.value)
+  }
   else if (c.cmd === 'update') update.tag ? restart() : checkUpdate(true)
   else if (['set_slot', 'set_own', 'reset', 'manual', 'badge', 'refresh'].includes(c.cmd)) command(c)
 })
@@ -206,13 +223,13 @@ let report = null
 
 function openReport() {
   if (report) { report.show(); report.focus(); return }
-  report = overlay('dlh://ui/report.html', { focusable: true, title: 'Raporteaza o problema', width: 420 })
+  report = overlay('dlh://ui/report.html', { focusable: true, title: 'Deadlock Helper', width: 420 })
   report.on('closed', () => { report = null })
 }
 
 ipcMain.handle('report-init', async () => {
   const diag = await ask({ cmd: 'diag' }, 5000)
-  return { diag: diag?.text || '(motorul nu a raspuns)', version: app.getVersion() }
+  return { diag: diag?.text || '(no answer from the engine)', version: app.getVersion(), lang: lang() }
 })
 
 ipcMain.on('report-size', (_e, s) => {
@@ -257,8 +274,8 @@ autoUpdater.on('update-downloaded', info => {
   Object.assign(update, { tag: 'v' + info.version, busy: false })
   push()
 })
-autoUpdater.on('update-not-available', () => finishCheck('esti la zi'))
-autoUpdater.on('error', e => finishCheck('eroare: ' + (e.code || e.name || 'update')))
+autoUpdater.on('update-not-available', () => finishCheck('latest'))
+autoUpdater.on('error', e => finishCheck(String(e.code || e.name || 'update')))
 
 function restart() {
   if (!update.tag) return
@@ -266,8 +283,10 @@ function restart() {
   autoUpdater.quitAndInstall(true, true)
 }
 
+// update descarcat: repornim singuri pe versiunea noua cand nu esti in meci
+// (jocul inchis, meniu, hideout). In meci asteptam, ca panoul sa nu dispara in lupta.
 function autoRestart() {
-  if (update.tag && !state?.game?.running && settings.restarted_for !== update.tag) {
+  if (update.tag && state?.view !== 'match' && state?.view !== 'searching' && settings.restarted_for !== update.tag) {
     save('restarted_for', update.tag)
     restart()
   }
@@ -288,11 +307,12 @@ if (!app.requestSingleInstanceLock()) {
     screen.on('display-metrics-changed', place)
     if (!process.argv.includes('--no-update')) {
       checkUpdate(false)
-      setInterval(() => checkUpdate(false), 30 * 60 * 1000)
+      setInterval(() => checkUpdate(false), 10 * 60 * 1000)
     }
     // test: DLH_SHOT=<fisier.png> salveaza panoul dupa cateva secunde si inchide
     if (process.env.DLH_SHOT) {
       if (process.env.DLH_SHOT_REPORT) setTimeout(openReport, 4000)
+      if (process.env.DLH_SHOT_DETAILS) setTimeout(() => panel.webContents.executeJavaScript("document.getElementById('btn-details')?.click()"), +process.env.DLH_SHOT_MS - 4000)
       setTimeout(async () => {
         const win = process.env.DLH_SHOT_REPORT ? report : panel
         const shot = await win.webContents.capturePage()

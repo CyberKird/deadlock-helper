@@ -66,6 +66,29 @@ def find_game():
             'minimized': minimized}
 
 
+def show_in_taskbar(raw_hwnd, ui_pid):
+    """Panoul nu ia focusul jocului (WS_EX_NOACTIVATE), iar Windows ascunde din
+    taskbar ferestrele astea. Il punem inapoi (WS_EX_APPWINDOW), ca sa-l poti fixa.
+    Doar pentru fereastra interfetei noastre (verificam procesul ei)."""
+    try:
+        hwnd = int(raw_hwnd)
+        pid = int(ui_pid)
+    except (TypeError, ValueError):
+        return False
+    owner = wt.DWORD()
+    user32.GetWindowThreadProcessId.argtypes = [wt.HWND, ctypes.POINTER(wt.DWORD)]
+    if hwnd <= 0 or not user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner)) or owner.value != pid:
+        return False
+    user32.GetWindowLongPtrW.argtypes = [wt.HWND, ctypes.c_int]
+    user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
+    user32.SetWindowLongPtrW.argtypes = [wt.HWND, ctypes.c_int, ctypes.c_ssize_t]
+    user32.SetWindowPos.argtypes = [wt.HWND, wt.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wt.UINT]
+    style = user32.GetWindowLongPtrW(hwnd, -20)                    # GWL_EXSTYLE
+    user32.SetWindowLongPtrW(hwnd, -20, (style | 0x40000) & ~0x80)   # +APPWINDOW, -TOOLWINDOW
+    user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, 0x37)               # FRAMECHANGED, fara mutare
+    return True
+
+
 class Grabber:
     def __init__(self):
         self.sct = mss.MSS() if hasattr(mss, 'MSS') else mss.mss()
